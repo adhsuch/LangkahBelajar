@@ -33,6 +33,22 @@ export function createApp() {
       },
     }),
   );
+  if (config.WEB_ORIGIN) {
+    app.use("/api", (req, res, next) => {
+      res.vary("Origin");
+      if (req.get("Origin") !== config.WEB_ORIGIN) return next();
+      res.set({
+        "Access-Control-Allow-Origin": config.WEB_ORIGIN,
+        "Access-Control-Allow-Credentials": "true",
+      });
+      if (req.method !== "OPTIONS" || !req.get("Access-Control-Request-Method")) return next();
+      res.set({
+        "Access-Control-Allow-Methods": "GET, POST, PATCH",
+        "Access-Control-Allow-Headers": "Content-Type, Idempotency-Key, X-API-Key",
+      });
+      res.sendStatus(204);
+    });
+  }
   app.use(express.json({ limit: "32kb" }));
   app.use(cookieParser());
   app.use("/api", (req, res, next) => {

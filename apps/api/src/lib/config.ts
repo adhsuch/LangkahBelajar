@@ -13,6 +13,11 @@ export const config = z
     INTEGRATION_API_KEY: z.string().min(1),
     INTEGRATION_TIMEOUT_MS: z.coerce.number().int().positive().default(4000),
     CATALOG_CACHE_TTL_HOURS: z.coerce.number().positive().default(168),
+    WEB_ORIGIN: z.union([z.literal(""), z.url({
+      protocol: /^https$/,
+      hostname: z.regexes.domain,
+      normalize: true,
+    }).transform((value) => new URL(value).origin)]).default(""),
     WEB_DIST: z.string().default("../web/dist"),
   })
   .parse(process.env);

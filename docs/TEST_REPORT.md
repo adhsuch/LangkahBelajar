@@ -42,6 +42,19 @@
 | Container resource and restart settings | **PASS** for PostgreSQL, the API and the gateway. The tunnel settings were checked in the Compose model. |
 | Physical STB, external integration containers and public HTTPS | **NOT RUN**. A physical STB, integration host and assigned Cloudflare tunnel are required for deployment verification. |
 
+## Adham checklist follow-up
+
+| Check | Result |
+|---|---|
+| Native application checks | **PASS** on Fedora x86-64 using Node.js 22 and a standalone PostgreSQL 18 process. Typecheck, lint, build, 51 API tests, 15 integration tests and 22 Chromium journeys passed. |
+| HTTPS-facing settings | **PASS** locally for the configured origin's credentialed preflight, omission of CORS headers for an unlisted origin, and the Secure, HttpOnly and SameSite=Strict cookie attributes. |
+| Compose model | **PASS** with and without the public profile, and for the separate integration stack. Verified the bridge, resource limits, health dependencies and loopback port binding. |
+| Final container image and runtime | **PASS** with rootless Podman and Docker Compose. The combined Compose build hit the local disk limit. Built the pinned API image separately and started it with `docker compose up -d --no-build --wait`. Recreated the database container against its existing volume to restore its Podman DNS alias after the bridge changed. All three local services became healthy. |
+| Final gateway and resources | **PASS**. Nginx config test succeeded, the health route returned HTTP 200, and a body above 32 KiB returned HTTP 413. Podman stats showed the expected live memory limits. |
+| Base image platform manifests | **PASS**. Node, PostgreSQL, Nginx and cloudflared publish Linux amd64 and arm64 images. |
+| Persistence test | **PASS**. Backed up the database, registered a synthetic caregiver, and retrieved the identical user ID with the existing session after restarting PostgreSQL, the API and Nginx. Repeated the check on the final stack. The named volume was retained. |
+| Physical Armbian STB and public HTTPS | **PENDING**. Run the deployment checks in the README on the assigned STB and hostname. |
+
 ## Known issue
 
 The Vitest process for the core API sometimes dies with a native crash on Windows with Node 24 (exit `0xC0000409` or a segmentation fault). It happened in roughly 1 of 6 to 1 of 18 runs, at a different test each time, and never as an assertion failure. The root cause is not identified.

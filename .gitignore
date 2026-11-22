@@ -1,9 +1,14 @@
 node_modules/
 dist/
 .env
-.env.docker
+.env.*
+!.env.example
 .dev-db/
 test-results/
 playwright-report/
 *.log
 PROMPT_*.md
+
+session.cookies
+
+*.dump

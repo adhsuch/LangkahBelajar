@@ -1,5 +1,5 @@
 # Runs outside the STB: cross-group integration service and, until partners exist, the simulated providers.
-# Usage: docker compose -f docker-compose.integration.yml --env-file .env.docker up -d --build
+# Usage: docker compose -f docker-compose.integration.yml up -d --build
 services:
   provider-sim:
     build:
@@ -23,7 +23,7 @@ services:
       - provider-sim
     environment:
       PORT: 4100
-      INTEGRATION_API_KEY: ${INTEGRATION_API_KEY:?Set INTEGRATION_API_KEY in .env.docker}
+      INTEGRATION_API_KEY: ${INTEGRATION_API_KEY:?Set INTEGRATION_API_KEY in .env}
       MATERIAL_PROVIDER_URL: ${MATERIAL_PROVIDER_URL:-http://provider-sim:4200}
       ACTIVITY_PROVIDER_URL: ${ACTIVITY_PROVIDER_URL:-http://provider-sim:4200}
       MATERIAL_PROVIDER_API_KEY: ${MATERIAL_PROVIDER_API_KEY:-}
