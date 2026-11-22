@@ -1,8 +1,10 @@
-# Runs on the STB: core service and its database only.
+# Runs on the STB: core API, database, gateway and optional HTTPS tunnel.
 # Usage: docker compose --env-file .env.docker up -d --build
 services:
   db:
     image: postgres:18-alpine
+    mem_limit: 256m
+    cpus: 0.5
     restart: unless-stopped
     environment:
       POSTGRES_USER: langkah
@@ -21,6 +23,8 @@ services:
       context: .
       dockerfile: Dockerfile.api
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
     depends_on:
       db:
         condition: service_healthy
@@ -29,12 +33,41 @@ services:
       PORT: 4000
       DATABASE_URL: postgresql://langkah:${POSTGRES_PASSWORD}@db:5432/langkahbelajar
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
       INTEGRATION_URL: ${INTEGRATION_URL:?Set INTEGRATION_URL to the service outside the STB}
       INTEGRATION_API_KEY: ${INTEGRATION_API_KEY:?Set INTEGRATION_API_KEY in .env.docker}
-      WEB_DIST: ../web/dist
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  gateway:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    mem_limit: 64m
+    cpus: 0.25
+    depends_on:
+      api:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z
     ports:
-      - "${APP_PORT:-8080}:4000"
+      - "127.0.0.1:${APP_PORT:-8080}:80"
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: [public]
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.25
+    depends_on:
+      - gateway
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
 
 volumes:
   db-data:

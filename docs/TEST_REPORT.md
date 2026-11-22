@@ -20,10 +20,27 @@
 | Responsive layout, 23 screen states at 21 sizes from 320px to 2560px, including landscape phones and tablets | Scripted browser emulation, 483 checks | **PASS** |
 | Worst-case data at 320px with the largest text | Scripted stress run | **PASS** |
 | Production API soak | 2,505 full learning journeys | **PASS**, no server crash |
-| Docker images and Compose | `docker compose up` | **BLOCKED**, Docker is not installed |
+| Docker images and Compose | `docker compose up` | **NOT RUN** in the original Windows environment. See the Fedora verification below. |
 | Real partner provider | | **BLOCKED**, no partner agreed |
 | Screen reader and physical devices | Manual | **NOT RUN** |
 | Evaluation with educators | Manual | **NOT RUN** |
+
+## STB Compose verification on Fedora
+
+**Run date:** 2026-11-22
+
+**Environment:** Fedora 45 x86-64, Node.js 22, PostgreSQL 18, Chromium, Docker Compose v5.8.0 and rootless Podman 6.1.3.
+
+| Check | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint`, `npm run build` | **PASS** |
+| `npm test` | **PASS** (51 API and 15 integration tests) |
+| `npm run test:e2e` | **PASS** (22 of 22 using Chromium) |
+| Compose configuration | **PASS** for the STB stack with and without the public profile, and for the external integration stack |
+| Core API image and STB stack | **PASS**. Built `Dockerfile.api` with Podman and started the stack with Docker Compose. Prisma applied the migration. |
+| Nginx smoke check | **PASS**. `GET /api/health` returned 200 with `{"status":"ok"}` and `GET /` returned 404. Only the gateway published a port, bound to loopback. |
+| Container resource and restart settings | **PASS** for PostgreSQL, the API and the gateway. The tunnel settings were checked in the Compose model. |
+| Physical STB, external integration containers and public HTTPS | **NOT RUN**. A physical STB, integration host and assigned Cloudflare tunnel are required for deployment verification. |
 
 ## Known issue
 

@@ -13,7 +13,7 @@ Last updated: 2026-11-22
 | 06 Caregiver support and routines | Done, reminders are in-app only |
 | 07 Integration and API hardening | Done |
 | 08 UI/UX and accessibility polish | Done, automated checks only |
-| 09 Final quality assurance | Done locally, Docker is blocked |
+| 09 Final quality assurance | Passed locally, physical STB and public HTTPS pending |
 | UI redesign (Engklek) | Done, see [DESIGN.md](DESIGN.md) |
 | Built-in Indonesian audio | Player and offline cache done, 0 of 73 clips supplied |
 
@@ -23,7 +23,7 @@ Last updated: 2026-11-22
 
 0. **Intermittent native crash in the API test process** on Windows with Node 24. The root cause is unknown, and the test runner reruns once. See [TEST_REPORT.md](TEST_REPORT.md).
 
-1. **Docker is untested.** Docker is not installed on the development machine, so the images and Compose files have never been run.
+1. **STB deployment is pending.** The core stack was built and smoke-tested on Fedora with rootless Podman and Docker Compose. The physical STB, external integration deployment and public Cloudflare endpoint still need verification.
 2. **No partner yet.** Partner groups and contracts are undecided, so both providers are simulated behind real HTTP adapters.
 3. **STB hardware is unconfirmed.** Prisma needs a 64-bit STB.
 4. **Dependency advisory.** `npm audit` reports 4 high findings in `deepmerge-ts` and `effect`, pulled in by the Prisma 6 CLI config package. The fix is a breaking move to Prisma 7. The CLI runs only for migrations and does not process user input, so the upgrade was deferred.

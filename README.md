@@ -50,21 +50,35 @@ npm run test:e2e
 
 ## Deploy with Docker
 
-Copy `.env.docker.example` to `.env.docker` and replace every value.
+Create a private `.env.docker` from `.env.docker.example` on each host. Generate a URL-safe database password (for example with `openssl rand -hex 24`) and use the same strong `INTEGRATION_API_KEY` on the API and integration hosts. Set `INTEGRATION_URL` to the integration endpoint reachable from the STB.
 
-Outside the STB:
+On the integration host outside the STB, start the integration service and its simulated providers:
 
-```powershell
+```sh
 docker compose -f docker-compose.integration.yml --env-file .env.docker up -d --build
 ```
 
-On the STB:
+On the 64-bit STB (x86-64 or ARM64), start PostgreSQL, the core API and the Nginx gateway:
 
-```powershell
-docker compose --env-file .env.docker up -d --build
+```sh
+docker compose --env-file .env.docker up -d --build --wait
+curl -fsS http://127.0.0.1:8080/api/health
 ```
 
-The STB must be 64-bit (x86-64 or ARM64) because Prisma has no 32-bit engine. The Docker setup has not been run yet, see [docs/TEST_REPORT.md](docs/TEST_REPORT.md).
+The gateway's diagnostic port is bound to loopback and PostgreSQL has no published port. The web app and the integration stack run separately from the STB. See [the test report](docs/TEST_REPORT.md) for the environments verified.
+
+For public HTTPS, configure the assigned Cloudflare hostname on `stei.fun` (K01) or `stei.site` (K02) as an HTTP route to `http://gateway:80`. Add the connector token as `TUNNEL_TOKEN` in the STB's `.env.docker` and set `COOKIE_SECURE=true`. Run these commands on the STB, then check `/api/health` on the assigned HTTPS hostname.
+
+```sh
+docker compose --env-file .env.docker --profile public up -d --build --wait
+docker compose --env-file .env.docker --profile public logs --tail=20 tunnel
+```
+
+Monitor the STB with `docker stats` and back up PostgreSQL regularly:
+
+```sh
+docker compose --env-file .env.docker exec -T db pg_dump -U langkah -d langkahbelajar > langkahbelajar.sql
+```
 
 ## Connect a partner provider
 
