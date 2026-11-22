@@ -1,0 +1,376 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RelationRole {
+  PARENT
+  TEACHER
+}
+
+enum TextSize {
+  NORMAL
+  LARGE
+  XLARGE
+}
+
+enum ResponseMethod {
+  TAP
+  CAREGIVER_ASSISTED
+}
+
+enum SessionType {
+  PRACTICE
+  STARTER
+}
+
+enum SessionStatus {
+  PLANNED
+  IN_PROGRESS
+  PAUSED
+  STOPPED
+  COMPLETED
+}
+
+enum StepKind {
+  START
+  PRACTICE
+  BREAK
+  FINISH
+}
+
+enum StepStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+  POSTPONED
+}
+
+enum MasteryStatus {
+  PRACTICING
+  NEXT_STAGE_OFFERED
+  FINAL_STAGE_REACHED
+}
+
+enum MaterialFormat {
+  TEXT
+  VISUAL
+  AUDIO
+}
+
+// Identity and Access
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  authSessions AuthSession[]
+  relations    CaregiverChildRelation[]
+  notes        CaregiverNote[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+model CaregiverChildRelation {
+  caregiverId String       @map("caregiver_id") @db.Uuid
+  childId     String       @map("child_id") @db.Uuid
+  role        RelationRole
+  isOwner     Boolean      @default(false) @map("is_owner")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  caregiver User         @relation(fields: [caregiverId], references: [id], onDelete: Cascade)
+  child     ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@id([caregiverId, childId])
+  @@index([childId])
+  @@map("caregiver_child_relations")
+}
+
+model ApiClient {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  keyHash   String   @unique @map("key_hash")
+  scopes    String[]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("api_clients")
+}
+
+// Learning Profile
+model ChildProfile {
+  id           String   @id @default(uuid()) @db.Uuid
+  nickname     String
+  initialNotes String?  @map("initial_notes")
+  isSample     Boolean  @default(false) @map("is_sample")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  relations  CaregiverChildRelation[]
+  preference LearningPreference?
+  targets    SkillTarget[]
+  sessions   LearningSession[]
+  results    ExerciseResult[]
+  mastery    SkillMastery[]
+  notes      CaregiverNote[]
+  routine    Routine?
+  summaries  SessionSummary[]
+
+  @@map("child_profiles")
+}
+
+model LearningPreference {
+  childId        String         @id @map("child_id") @db.Uuid
+  audioEnabled   Boolean        @map("audio_enabled")
+  textSize       TextSize       @map("text_size")
+  visualCues     Boolean        @map("visual_cues")
+  responseMethod ResponseMethod @map("response_method")
+  reduceMotion   Boolean        @map("reduce_motion")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@map("learning_preferences")
+}
+
+model Skill {
+  code      String   @id
+  maxLevel  Int      @map("max_level")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  targets SkillTarget[]
+  mastery SkillMastery[]
+
+  @@map("skills")
+}
+
+model SkillTarget {
+  childId   String   @map("child_id") @db.Uuid
+  skillCode String   @map("skill_code")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  skill Skill        @relation(fields: [skillCode], references: [code])
+
+  @@id([childId, skillCode])
+  @@map("skill_targets")
+}
+
+// Stepwise Learning
+model LearningSession {
+  id              String        @id @default(uuid()) @db.Uuid
+  childId         String        @map("child_id") @db.Uuid
+  type            SessionType   @default(PRACTICE)
+  status          SessionStatus @default(PLANNED)
+  durationMinutes Int           @map("duration_minutes")
+  profileSnapshot Json          @map("profile_snapshot")
+  pauseCount      Int           @default(0) @map("pause_count")
+  startedAt       DateTime?     @map("started_at")
+  pausedAt        DateTime?     @map("paused_at")
+  stoppedAt       DateTime?     @map("stopped_at")
+  completedAt     DateTime?     @map("completed_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  child   ChildProfile     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  steps   SessionStep[]
+  results ExerciseResult[]
+  summary SessionSummary?
+
+  @@index([childId, status])
+  @@map("learning_sessions")
+}
+
+model SessionStep {
+  id               String     @id @default(uuid()) @db.Uuid
+  sessionId        String     @map("session_id") @db.Uuid
+  position         Int
+  kind             StepKind
+  status           StepStatus @default(PENDING)
+  skillCode        String?    @map("skill_code")
+  level            Int?
+  activityId       String?    @map("activity_id")
+  activityVersion  String?    @map("activity_version")
+  activity         Json?
+  material         Json?
+  adaptationReason String?    @map("adaptation_reason")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  session LearningSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  results ExerciseResult[]
+
+  @@unique([sessionId, position])
+  @@map("session_steps")
+}
+
+model ExerciseResult {
+  id                 String   @id @default(uuid()) @db.Uuid
+  idempotencyKey     String   @unique @map("idempotency_key")
+  sessionId          String   @map("session_id") @db.Uuid
+  stepId             String   @map("step_id") @db.Uuid
+  childId            String   @map("child_id") @db.Uuid
+  skillCode          String   @map("skill_code")
+  level              Int
+  activityId         String   @map("activity_id")
+  activityVersion    String   @map("activity_version")
+  attemptNo          Int      @map("attempt_no")
+  answer             Json
+  isCorrect          Boolean  @map("is_correct")
+  supportUsed        String[] @map("support_used")
+  independent        Boolean
+  countsTowardMastery Boolean @map("counts_toward_mastery")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  session LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  step    SessionStep     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  child   ChildProfile    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, attemptNo])
+  @@index([childId, skillCode, level])
+  @@map("exercise_results")
+}
+
+model SkillMastery {
+  childId          String        @map("child_id") @db.Uuid
+  skillCode        String        @map("skill_code")
+  currentLevel     Int           @default(1) @map("current_level")
+  status           MasteryStatus @default(PRACTICING)
+  dismissedAtCount Int           @default(0) @map("dismissed_at_count")
+  reviewedAt       DateTime?     @map("reviewed_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  skill Skill        @relation(fields: [skillCode], references: [code])
+
+  @@id([childId, skillCode])
+  @@map("skill_mastery")
+}
+
+// Caregiver Support
+model CaregiverNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  childId   String   @map("child_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  sessionId String?  @map("session_id") @db.Uuid
+  skillCode String?  @map("skill_code")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  child  ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  author User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([childId, createdAt])
+  @@map("caregiver_notes")
+}
+
+model Routine {
+  childId          String   @id @map("child_id") @db.Uuid
+  days             Int[]
+  time             String
+  durationMinutes  Int      @map("duration_minutes")
+  breakMinutes     Int      @map("break_minutes")
+  remindersEnabled Boolean  @map("reminders_enabled")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@map("routines")
+}
+
+// Read model built from the SessionCompleted event.
+model SessionSummary {
+  sessionId String   @id @map("session_id") @db.Uuid
+  childId   String   @map("child_id") @db.Uuid
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  session LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  child   ChildProfile    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, createdAt])
+  @@map("session_summaries")
+}
+
+// Integration
+model MaterialCache {
+  id         String         @id @default(uuid()) @db.Uuid
+  materialId String         @map("material_id")
+  version    String
+  skillCode  String         @map("skill_code")
+  level      Int
+  format     MaterialFormat
+  mediaUrl   String         @map("media_url")
+  title      String
+  fetchedAt  DateTime       @map("fetched_at")
+  validUntil DateTime       @map("valid_until")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  @@unique([materialId, version])
+  @@index([skillCode, level, format, validUntil])
+  @@map("material_cache")
+}
+
+model ActivityCache {
+  id         String   @id @default(uuid()) @db.Uuid
+  activityId String   @map("activity_id")
+  version    String
+  skillCode  String   @map("skill_code")
+  level      Int
+  template   Json
+  fetchedAt  DateTime @map("fetched_at")
+  validUntil DateTime @map("valid_until")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([activityId, version])
+  @@index([skillCode, level, validUntil])
+  @@map("activity_cache")
+}
+
+model ExternalProviderLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  provider   String
+  operation  String
+  outcome    String
+  httpStatus Int?     @map("http_status")
+  durationMs Int      @map("duration_ms")
+  errorCode  String?  @map("error_code")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([provider, createdAt])
+  @@map("external_provider_logs")
+}

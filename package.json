@@ -1,0 +1,39 @@
+{
+  "name": "langkahbelajar",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "db:start": "node scripts/dev-db.mjs start",
+    "db:stop": "node scripts/dev-db.mjs stop",
+    "db:migrate": "npm run db:migrate -w @langkahbelajar/api",
+    "db:seed": "npm run db:seed -w @langkahbelajar/api",
+    "dev": "concurrently -k -n api,integration,provider,web \"npm run dev -w @langkahbelajar/api\" \"npm run dev -w @langkahbelajar/integration\" \"npm run dev -w @langkahbelajar/provider-sim\" \"npm run dev -w @langkahbelajar/web\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "audio:sync": "tsx scripts/audio-sync.ts",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.2.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.39.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.4"
+  }
+}

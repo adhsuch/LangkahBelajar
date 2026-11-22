@@ -1,0 +1,40 @@
+# Runs on the STB: core service and its database only.
+# Usage: docker compose --env-file .env.docker up -d --build
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: langkah
+      POSTGRES_DB: langkahbelajar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.docker}
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langkah -d langkahbelajar"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://langkah:${POSTGRES_PASSWORD}@db:5432/langkahbelajar
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
+      INTEGRATION_URL: ${INTEGRATION_URL:?Set INTEGRATION_URL to the service outside the STB}
+      INTEGRATION_API_KEY: ${INTEGRATION_API_KEY:?Set INTEGRATION_API_KEY in .env.docker}
+      WEB_DIST: ../web/dist
+    ports:
+      - "${APP_PORT:-8080}:4000"
+
+volumes:
+  db-data:

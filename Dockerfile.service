@@ -1,0 +1,15 @@
+# Bundled Node service. Build with --build-arg APP=integration or APP=provider-sim.
+ARG APP=integration
+
+FROM node:22-slim AS build
+ARG APP
+WORKDIR /app
+COPY . .
+RUN npm ci --ignore-scripts
+RUN npm run build -w @langkahbelajar/${APP} && cp apps/${APP}/dist/server.cjs /server.cjs
+
+FROM node:22-slim
+ENV NODE_ENV=production
+COPY --from=build /server.cjs /app/server.cjs
+USER node
+CMD ["node", "/app/server.cjs"]
